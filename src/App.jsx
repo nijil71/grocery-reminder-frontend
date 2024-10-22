@@ -6,12 +6,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, ShoppingCart, ChefHat, Trash2,User } from 'lucide-react';
+import { PlusCircle, ShoppingCart, ChefHat, Trash2,User, Edit2 } from 'lucide-react';
 import PhoneInputWithCountryCode from './components/PhoneInput';
 import LogoutDialog from './components/LogoutDialog';
 import LoadingAnimation from './components/LoadingAnimation';
+import EditItemDialog from './components/EditDialog';
+import DeleteConfirmationDialog from './components/DeleteDialog';
 const API_URL = 'https://grocery-reminder-backend.vercel.app';
-function LoginSignup({ onLogin }) {
+function LoginSignup({ onLogin } ) {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -140,8 +142,11 @@ export default function SmartGroceryList() {
   const [recipes, setRecipes] = useState([]);
   const [shoppingHistory, setShoppingHistory] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
-
-
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
   useEffect(() => {
     const checkAuthStatus = async () => {
       const token = localStorage.getItem('token');
@@ -247,14 +252,55 @@ export default function SmartGroceryList() {
     }
   };
 
-  const deleteItem = async (itemId) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
-    await fetch(`${API_URL}/delete_item/${itemId}`, {
+  const editItem = async (itemId, newName, newShelfLife) => {
+    if (!newName || !newShelfLife) return;
+    try {
+      const response = await fetch(`${API_URL}/update_item/${itemId}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ name: newName, shelf_life: parseInt(newShelfLife) }),
+      });
+      if (response.ok) {
+        await fetchUserData();
+      } else {
+        throw new Error('Failed to edit item');
+      }
+    } catch (error) {
+      console.error('Error editing item:', error);
+    }
+  };
+  const handleEditClick = (item) => {
+    setItemToEdit(item);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (item) => {
+    setItemToDelete(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (itemToDelete) {
+      await fetch(`${API_URL}/delete_item/${itemToDelete.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      setGroceryList(prevList => prevList.filter(item => item.id !== itemToDelete.id));
+      setExpiringItems(prevItems => prevItems.filter(item => item.id !== itemToDelete.id));
+      setItemToDelete(null);
+    }
+  };
+  
+  const handleDeleteAllConfirm = async () => {
+    await fetch(`${API_URL}/delete_all_items`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
-    setGroceryList(prevList => prevList.filter(item => item.id !== itemId));
-    setExpiringItems(prevItems => prevItems.filter(item => item.id !== itemId));
+    setGroceryList([]);
+    setExpiringItems([]);
   };
 
   const fetchRecipes = async () => {
@@ -293,7 +339,7 @@ export default function SmartGroceryList() {
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
       <div className="flex justify-between items-center mb-8">
-          <h1 className="text-xl font-bold text-gray-800 sm:text-4xl">Grocery Tracker</h1>
+          <h1 className="text-xl font-bold text-gray-800 sm:text-4xl">Smart Grocery List</h1>
           <div className="flex items-center space-x-4">
             <div className=" items-center space-x-2 hidden sm:flex">
               <User className="w-7 h-7 " />
@@ -305,12 +351,12 @@ export default function SmartGroceryList() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-md">
-            <CardHeader className="flex items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <h2 className="text-xl font-semibold">Add New Item</h2>
-              <PlusCircle className="text-green-500" />
-            </CardHeader>
+              <PlusCircle className="text-primary h-6 w-6 animate-bounce" />
+              </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 mt-4">
                 <Input
                   type="text"
                   value={newItem}
@@ -331,31 +377,66 @@ export default function SmartGroceryList() {
           </Card>
 
           <Card className="shadow-md">
-            <CardHeader className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Grocery List</h2>
-              <ShoppingCart className="text-blue-500" />
-            </CardHeader>
-            <CardContent>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-xl font-semibold">Grocery List</CardTitle>
+          <div className="relative">
+            <ShoppingCart className="text-primary h-6 w-6 animate-pulse" />
+            {groceryList.length > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs animate-bounce"
+              >
+                {groceryList.length}
+              </Badge>
+            )}
+          </div>        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[300px] pr-4">
+            {groceryList.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">Your grocery list is empty.</p>
+            ) : (
               <ul className="space-y-2">
                 {groceryList.map((item) => (
-                  <li key={item.id} className="flex justify-between items-center">
-                    <span>{item.name}</span>
-                    <span className="text-sm text-gray-500">
-                      Expires: {new Date(item.expiry_date).toLocaleDateString()}
-                    </span>
-                    <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => deleteItem(item.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
+                  <li key={item.id} className="flex justify-between items-center p-2 rounded-lg bg-gray-50">
+                    <span className="font-medium">{item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        Expires: {new Date(item.expiry_date).toLocaleDateString()}
+                      </Badge>
+                      <Button
+  variant="ghost"
+  size="icon"
+  onClick={() => handleEditClick(item)}
+  className="text-primary hover:text-primary/90 transition-transform duration-200 hover:scale-110"
+>
+  <Edit2 className="w-4 h-4" />
+</Button>
+<Button
+  variant="ghost"
+  size="icon"
+  onClick={() => handleDeleteClick(item)}
+  className="text-destructive hover:text-destructive/90 transition-transform duration-200 hover:scale-110"
+>
+  <Trash2 className="w-4 h-4" />
+</Button>
+                    </div>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
+            )}
+          </ScrollArea>
+          {groceryList.length > 0 && (
+  <Button 
+    variant="outline" 
+    className="w-full mt-4 hover:bg-red-500 hover:text-white transition-colors duration-200"
+    onClick={() => setIsDeleteAllDialogOpen(true)}
+  >
+    Delete All
+    
+  </Button>
+)}
+        </CardContent>
+      </Card>
         </div>
 
         <Separator className="my-8" />
@@ -416,6 +497,28 @@ export default function SmartGroceryList() {
     </Card>
         )}
       </div>
+      <DeleteConfirmationDialog
+  isOpen={isDeleteDialogOpen}
+  setIsOpen={setIsDeleteDialogOpen}
+  onConfirm={handleDeleteConfirm}
+  title="Delete Item"
+  description={`Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone.`}
+/>
+
+<DeleteConfirmationDialog
+  isOpen={isDeleteAllDialogOpen}
+  setIsOpen={setIsDeleteAllDialogOpen}
+  onConfirm={handleDeleteAllConfirm}
+  title="Delete All Items"
+  description="Are you sure you want to delete all items from your grocery list? This action cannot be undone."
+  confirmText="Delete All"
+/>
+      <EditItemDialog
+  item={itemToEdit}
+  isOpen={isEditDialogOpen}
+  setIsOpen={setIsEditDialogOpen}
+  onEdit={editItem}
+/>
     </div>
   );
 }
