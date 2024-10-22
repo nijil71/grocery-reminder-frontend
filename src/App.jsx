@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle  } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,129 +7,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from '@/components/ui/separator';
 import { PlusCircle, ShoppingCart, ChefHat, Trash2,User, Edit2 } from 'lucide-react';
-import PhoneInputWithCountryCode from './components/PhoneInput';
 import LogoutDialog from './components/LogoutDialog';
 import LoadingAnimation from './components/LoadingAnimation';
 import EditItemDialog from './components/EditDialog';
 import DeleteConfirmationDialog from './components/DeleteDialog';
 const API_URL = 'https://grocery-reminder-backend.vercel.app';
-function LoginSignup({ onLogin } ) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-
-  const validateForm = () => {
-    if (username.length < 3) {
-      setError('Username must be at least 3 characters long');
-      return false;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return false;
-    }
-
-
-    return true;
-  };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!validateForm()) {
-      return;
-    }
-    const endpoint = isLogin ? '/login' : '/register';
-    const body = isLogin
-      ? { username, password }
-      : { username, password, phone_number: phoneNumber };
-
-    try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        if (isLogin) {
-          localStorage.setItem('token', data.access_token);
-          localStorage.setItem('username', data.username);
-          onLogin(data.username);
-        
-        } else {
-          setIsLogin(true);
-          setSuccess('Account created successfully, please login!');
-        }
-      } else {
-        setError(data.message);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-    
-  };
-
-  return (
-<div className="min-h-screen flex flex-col justify-center items-center">
-  <Card className="w-full max-w-lg p-8">
-    <CardHeader className="text-center mb-4 font-bold text-2xl">
-      <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-        {isLogin ? 'Login' : 'Sign Up'}
-      </span>
-    </CardHeader>
-    <CardContent className="grid gap-2">
-    {success && (
-  <React.Fragment>
-    <Alert variant="destructive" className="mb-4 border border-green-500 text-green-500">
-      <AlertDescription>{success}</AlertDescription>
-    </Alert>
-  </React.Fragment>
-)}
-    {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-      <form onSubmit={handleSubmit} className="grid gap-2 p-2">
-        <Input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username"
-          className="mb-4 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          required
-        />
-        <Input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          className="mb-4"
-          required
-        />
-        {!isLogin && (
-          <PhoneInputWithCountryCode
-            phoneNumber={phoneNumber}
-            setPhoneNumber={setPhoneNumber}
-          />
-
-        )}
-        <Button type="submit" className="w-full">
-          {isLogin ? 'Login' : 'Sign Up'}
-        </Button>
-      </form>
-      <Button onClick={() => setIsLogin(!isLogin)} className="w-full mt-2">
-        {isLogin ? 'Need an account? Sign Up' : 'Have an account? Log In'}
-      </Button>
-    </CardContent>
-  </Card>
-</div>
-
-  );
-}
 
 export default function SmartGroceryList() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
