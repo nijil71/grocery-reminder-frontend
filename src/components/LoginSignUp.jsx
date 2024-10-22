@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ExclamationTriangleIcon, CheckCircledIcon } from "@radix-ui/react-icons";
 import PhoneInputWithCountryCode from './PhoneInput';
-const API_URL = 'http://127.0.0.1:5000';
+const API_URL = 'https://grocery-reminder-backend.vercel.app';
 
 const LoginSignup = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
